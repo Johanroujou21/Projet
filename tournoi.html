@@ -1,11 +1,352 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Tournoi</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tournoi BRF - Élimination Directe & Chrono</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(to right, #002395, white, #ed2939);
+    margin: 0; padding: 20px;
+    color: #002395;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 {
+    margin-bottom: 12px;
+  }
+  .icons {
+    font-size: 30px;
+    margin-bottom: 10px;
+  }
+  #bracket {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    gap: 40px;
+    flex-wrap: wrap;
+    max-width: 1000px;
+  }
+  .round {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+  .match {
+    background: white;
+    border: 3px solid #002395;
+    border-radius: 12px;
+    padding: 12px;
+    width: 220px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .team {
+    font-weight: 700;
+    font-size: 16px;
+    margin: 4px 0;
+  }
+  .score-input {
+    width: 40px;
+    font-size: 16px;
+    text-align: center;
+    margin-left: 8px;
+  }
+  label {
+    font-weight: 500;
+  }
+  .winner {
+    color: #ed2939;
+    font-weight: 900;
+  }
+  #timer-container {
+    margin-top: 25px;
+    background: white;
+    border-radius: 12px;
+    border: 3px solid #002395;
+    padding: 20px;
+    width: 280px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  #timer {
+    font-size: 48px;
+    font-weight: 900;
+    margin-bottom: 12px;
+    color: #ed2939;
+  }
+  button {
+    background-color: #002395;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 18px;
+    cursor: pointer;
+    margin: 5px;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #001b75;
+  }
+  footer {
+    margin-top: 40px;
+    font-size: 14px;
+    color: #002395;
+  }
+</style>
 </head>
 <body>
-  <h1>Page du tournoi de pétanque BRF</h1>
-  <p>Cette page s'affiche correctement ✅</p>
+
+  <div class="icons">👮‍♂️🚓🏆</div>
+  <h1>Tournoi de Pétanque – BRF (Élimination Directe)</h1>
+
+  <div id="bracket"></div>
+
+  <div id="timer-container">
+    <div>Chrono Partie (20 min)</div>
+    <div id="timer">20:00</div>
+    <button id="startBtn">Démarrer</button>
+    <button id="stopBtn" disabled>Arrêter</button>
+    <button id="resetBtn">Réinitialiser</button>
+  </div>
+
+  <footer>Journée Cohésion – 20 mai 2026 🇫🇷</footer>
+
+<script>
+  const teams = JSON.parse(localStorage.getItem('teams')) || [];
+  const maxTeams = 30;
+
+  function fillByes(teams) {
+    let n = 1;
+    while (n < teams.length) n <<= 1;
+    while (teams.length < n) {
+      teams.push({ teamName: "Bye", players: ["-", "-"], isBye: true });
+    }
+    return teams;
+  }
+
+  const bracketDiv = document.getElementById('bracket');
+
+  let teamsReady = teams.slice(0, maxTeams);
+  teamsReady = fillByes(teamsReady);
+
+  let rounds = [];
+
+  function generateFirstRound(teams) {
+    let matches = [];
+    for(let i=0; i<teams.length; i+=2) {
+      matches.push({
+        team1: teams[i],
+        team2: teams[i+1],
+        score1: null,
+        score2: null,
+        winnerIndex: null,
+      });
+    }
+    return matches;
+  }
+
+  function generateNextRounds(nbMatches) {
+    let nextRounds = [];
+    while(nbMatches > 1) {
+      nbMatches = nbMatches / 2;
+      nextRounds.push(new Array(nbMatches).fill(null).map(() => ({
+        team1: null,
+        team2: null,
+        score1: null,
+        score2: null,
+        winnerIndex: null,
+      })));
+    }
+    return nextRounds;
+  }
+
+  rounds.push(generateFirstRound(teamsReady));
+  const nextRounds = generateNextRounds(rounds[0].length);
+  rounds = rounds.concat(nextRounds);
+
+  function renderBracket() {
+    bracketDiv.innerHTML = "";
+    rounds.forEach((round, roundIndex) => {
+      const roundDiv = document.createElement('div');
+      roundDiv.classList.add('round');
+      roundDiv.innerHTML = `<h3>Tour ${roundIndex + 1}</h3>`;
+
+      round.forEach((match, matchIndex) => {
+        const matchDiv = document.createElement('div');
+        matchDiv.classList.add('match');
+
+        const team1Name = match.team1 ? match.team1.teamName : "À définir";
+        const team2Name = match.team2 ? match.team2.teamName : "À définir";
+
+        const team1Class = (match.team1 && match.team1.isBye) ? 'team bye' : 'team';
+        const team2Class = (match.team2 && match.team2.isBye) ? 'team bye' : 'team';
+
+        const score1 = match.score1 !== null ? match.score1 : "";
+        const score2 = match.score2 !== null ? match.score2 : "";
+
+        const disabled1 = (match.team1 && match.team1.isBye) ? "disabled" : "";
+        const disabled2 = (match.team2 && match.team2.isBye) ? "disabled" : "";
+
+        const winner1 = match.winnerIndex === 0 ? "winner" : "";
+        const winner2 = match.winnerIndex === 1 ? "winner" : "";
+
+        matchDiv.innerHTML = `
+          <div class="${team1Class} team ${winner1}">${team1Name}
+            <input type="number" min="0" max="50" class="score-input" data-round="${roundIndex}" data-match="${matchIndex}" data-team="0" value="${score1}" ${disabled1} />
+          </div>
+          <div class="${team2Class} team ${winner2}">${team2Name}
+            <input type="number" min="0" max="50" class="score-input" data-round="${roundIndex}" data-match="${matchIndex}" data-team="1" value="${score2}" ${disabled2} />
+          </div>
+        `;
+
+        roundDiv.appendChild(matchDiv);
+      });
+
+      bracketDiv.appendChild(roundDiv);
+    });
+  }
+
+  function updateWinners() {
+    for(let roundIndex = 0; roundIndex < rounds.length -1; roundIndex++) {
+      let currentRound = rounds[roundIndex];
+      let nextRound = rounds[roundIndex + 1];
+      for(let i=0; i<currentRound.length; i++) {
+        const match = currentRound[i];
+        if(match.score1 === null || match.score2 === null) {
+          match.winnerIndex = null;
+          continue;
+        }
+        if(match.team1.isBye) {
+          match.winnerIndex = 1;
+        } else if(match.team2.isBye) {
+          match.winnerIndex = 0;
+        } else if(match.score1 > match.score2) {
+          match.winnerIndex = 0;
+        } else if(match.score2 > match.score1) {
+          match.winnerIndex = 1;
+        } else {
+          match.winnerIndex = null; // égalité, pas géré ici
+        }
+
+        if(match.winnerIndex !== null && nextRound) {
+          const nextMatchIndex = Math.floor(i/2);
+          const nextMatch = nextRound[nextMatchIndex];
+          if(!nextMatch) continue;
+          if(i % 2 === 0) {
+            nextMatch.team1 = match.winnerIndex !== null ? (match.winnerIndex === 0 ? match.team1 : match.team2) : null;
+          } else {
+            nextMatch.team2 = match.winnerIndex !== null ? (match.winnerIndex === 0 ? match.team1 : match.team2) : null;
+          }
+        }
+      }
+    }
+    // reset derniers rounds gagnants si modifié
+    for(let roundIndex = 1; roundIndex < rounds.length; roundIndex++) {
+      let round = rounds[roundIndex];
+      for(let i=0; i<round.length; i++) {
+        let match = round[i];
+        if(!match) continue;
+        if(!match.team1 || !match.team2) {
+          match.winnerIndex = null;
+        }
+      }
+    }
+
+    localStorage.setItem('bracketRounds', JSON.stringify(rounds));
+  }
+
+  function onScoreInputChange(e) {
+    const input = e.target;
+    const roundIndex = parseInt(input.dataset.round);
+    const matchIndex = parseInt(input.dataset.match);
+    const teamIndex = parseInt(input.dataset.team);
+    const val = input.value === "" ? null : parseInt(input.value);
+
+    if(val !== null && (val < 0 || val > 50)) {
+      alert("Score doit être entre 0 et 50");
+      input.value = "";
+      return;
+    }
+
+    if(rounds[roundIndex] && rounds[roundIndex][matchIndex]) {
+      if(teamIndex === 0) {
+        rounds[roundIndex][matchIndex].score1 = val;
+      } else {
+        rounds[roundIndex][matchIndex].score2 = val;
+      }
+    }
+
+    updateWinners();
+    renderBracket();
+    attachScoreListeners();
+  }
+
+  function attachScoreListeners() {
+    const inputs = document.querySelectorAll('.score-input');
+    inputs.forEach(input => input.addEventListener('input', onScoreInputChange));
+  }
+
+  renderBracket();
+  attachScoreListeners();
+
+  // ----------- Chrono 20 minutes -----------
+  const timerEl = document.getElementById('timer');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let timerSeconds = 20 * 60;
+  let intervalId = null;
+
+  function updateTimerDisplay() {
+    const minutes = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+    const seconds = (timerSeconds % 60).toString().padStart(2, '0');
+    timerEl.textContent = `${minutes}:${seconds}`;
+  }
+
+  function startTimer() {
+    if(intervalId) return;
+    intervalId = setInterval(() => {
+      timerSeconds--;
+      updateTimerDisplay();
+      if(timerSeconds <= 0) {
+        clearInterval(intervalId);
+        intervalId = null;
+        alert("Temps écoulé !");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }, 1000);
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+  }
+
+  function stopTimer() {
+    if(intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  }
+
+  function resetTimer() {
+    stopTimer();
+    timerSeconds = 20 * 60;
+    updateTimerDisplay();
+  }
+
+  startBtn.addEventListener('click', startTimer);
+  stopBtn.addEventListener('click', stopTimer);
+  resetBtn.addEventListener('click', resetTimer);
+
+  updateTimerDisplay();
+</script>
+
 </body>
 </html>
