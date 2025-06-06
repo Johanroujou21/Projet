@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tournoi</title>
+  <style>
+    body { text-align: center; font-family: sans-serif; }
+    .match { border: 1px solid #ccc; padding: 10px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h1 style="color: navy;">Suivi du tournoi 🥇</h1>
+  <div id="matches"></div>
+  <div>
+    <h2>⏱️ Chrono : <span id="timer">20:00</span></h2>
+    <button onclick="startTimer()">Démarrer</button>
+  </div>
+
+  <script>
+    const teams = JSON.parse(localStorage.getItem("teams")) || [];
+    const container = document.getElementById("matches");
+
+    function createMatches(list) {
+      container.innerHTML = "";
+      for (let i = 0; i < list.length; i += 2) {
+        const match = document.createElement("div");
+        match.className = "match";
+        match.innerText = `${list[i].team} VS ${list[i + 1]?.team || "—"}`;
+        container.appendChild(match);
+      }
+    }
+
+    if (teams.length >= 2) {
+      createMatches(teams);
+    } else {
+      container.innerHTML = "<p>Pas assez d'équipes inscrites.</p>";
+    }
+
+    let timer;
+    function startTimer() {
+      let time = 20 * 60;
+      timer = setInterval(() => {
+        const min = Math.floor(time / 60);
+        const sec = time % 60;
+        document.getElementById("timer").textContent =
+          `${min.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+        if (--time < 0) clearInterval(timer);
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
